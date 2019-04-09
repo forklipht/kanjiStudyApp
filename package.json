@@ -1,0 +1,25 @@
+{
+  "name": "jpnstudyapp",
+  "version": "1.0.0",
+  "description": "An app for studying Japanese",
+  "main": "index.js",
+  "dependencies": {
+    "dotenv": "^7.0.0",
+    "mysql": "^2.16.0",
+    "xml-js": "^1.6.11"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/forklipht/kanjiStudyApp.git"
+  },
+  "author": "Tyler Hagen",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/forklipht/kanjiStudyApp/issues"
+  },
+  "homepage": "https://github.com/forklipht/kanjiStudyApp#readme"
+}
