@@ -5,20 +5,51 @@ var fs = require('fs');
 
 var json_result = JSON.parse(fs.readFileSync('./kanjidic2_json.json', 'utf8'));
 
-// TODO
-// Create array for kanji entries
-var kanji_entries = [];
-// Create array for meaning entries
-var meaning_entries = [];
-// Create array for reading entries
-var reading_entries = [];
+// Set DB connection options and connect to db
+var db_connect_options = {
+  host: 'localhost',
+  user: 'root',
+  password: process.env.DB_PW,
+  database: 'kanji_app'
+}
+var db_connection = mysql.createConnection(db_connect_options);
 
+// Delete all present info
+var delete_meaning_q = `delete from meaning`;
+db_connection.query(delete_meaning_q, function (err, thing) {
+  if (err) {
+    console.log(err);
+  }
+});
+var delete_reading_q = `delete from reading`;
+db_connection.query(delete_reading_q, function (err, thing) {
+  if (err) {
+    console.log(err);
+  }
+});
+var delete_kanji_q = `delete from kanji`;
+db_connection.query(delete_kanji_q, function (err, thing) {
+  if (err) {
+    console.log(err);
+  }
+});
+
+var error_check = 0;
+
+
+//json_result.kanjidic2.character.length
 // Loop over list of characters in JSON
 for (i = 0; i < json_result.kanjidic2.character.length; i++) {
   // Show progress
-  if (i % 50 == 0) {
-    console.log(`Processed ${i} characters.`);
+  if (i > 13000) {
+    console.log(`Now processing ${kanji} at entry ${i}`);
   }
+  // Create array for kanji entries
+  var kanji_entries = [];
+  // Create array for meaning entries
+  var meaning_entries = [];
+  // Create array for reading entries
+  var reading_entries = [];
 
   // Process kanji entry
   // Column order: id, character ('literal' on db), grade, stroke_count, frequency
@@ -70,6 +101,18 @@ for (i = 0; i < json_result.kanjidic2.character.length; i++) {
   // Add row to data insert array
   kanji_entries.push(kanji_row);
 
+  // Insert kanji_entries into DB
+  var kanji_q = `INSERT INTO kanji (id, literal, stroke_count, grade, frequency, jlpt) VALUES ?`;
+  db_connection.query(kanji_q, [kanji_entries], function (err, thing) {
+    if (err && error_check < 5) {
+      console.log(err);
+      error_check++;
+    } else {
+    }
+  })
+
+
+
   // Process readings and meanings
   // Some kanji have neither reading or meaning, must check and handle
   if (json_result.kanjidic2.character[i].reading_meaning) {
@@ -87,6 +130,16 @@ for (i = 0; i < json_result.kanjidic2.character.length; i++) {
               reading_row.push(reading._text);
               reading_row.push(reading._attributes.r_type);
               reading_entries.push(reading_row);
+
+              // Insert reading_entries into DB
+              var reading_q = `INSERT INTO reading ( kanji_id, reading, reading_type) VALUES ?`;
+              db_connection.query(reading_q, [reading_entries], function (err, thing) {
+                if (err) {
+                  console.log(`error adding readings for ${kanji} at entry ${i}`)
+                  console.log(err);
+                } else {
+                }
+              })
             }
           })
         } else {
@@ -99,6 +152,16 @@ for (i = 0; i < json_result.kanjidic2.character.length; i++) {
             reading_row.push(reading._text);
             reading_row.push(reading._attributes.r_type);
             reading_entries.push(reading_row);
+
+            // Insert reading_entries into DB
+            var reading_q = `INSERT INTO reading ( kanji_id, reading, reading_type) VALUES ?`;
+            db_connection.query(reading_q, [reading_entries], function (err, thing) {
+              if (err) {
+                console.log(`error adding readings for ${kanji} at entry ${i}`)
+                console.log(err);
+              } else {
+              }
+            })
           }
         }
       } else {
@@ -130,16 +193,36 @@ for (i = 0; i < json_result.kanjidic2.character.length; i++) {
             // The 0 here is to indicate that the meaning is not submitted by a user
             meaning_row.push(0);
             meaning_entries.push(meaning_row);
+
+            // Insert meaning_entries into DB
+            var meaning_q = `INSERT INTO meaning ( kanji_id, meaning, user_submitted) VALUES ?`;
+            db_connection.query(meaning_q, [meaning_entries], function (err, thing) {
+              if (err) {
+                console.log(`error adding meanings for ${kanji} at entry ${i}`);
+                console.log(err);
+              } else {
+              }
+            })
           }
         })
       } else if (typeof (json_result.kanjidic2.character[i].reading_meaning.rmgroup.meaning) == 'object' && !(json_result.kanjidic2.character[i].reading_meaning.rmgroup.meaning instanceof Array)) {
-        // Handle cases where the is only one meaning
+        // Handle cases where there is only one meaning
         // i is the value for the foreign key 'kanji_id' on the meanings table
         var meaning_row = [i];
         meaning_row.push(json_result.kanjidic2.character[i].reading_meaning.rmgroup.meaning._text);
         // The 0 here is to indicate that the meaning is not submitted by a user
         meaning_row.push(0);
         meaning_entries.push(meaning_row);
+
+        // Insert meaning_entries into DB
+        var meaning_q = `INSERT INTO meaning ( kanji_id, meaning, user_submitted) VALUES ?`;
+        db_connection.query(meaning_q, [meaning_entries], function (err, thing) {
+          if (err) {
+            console.log(`error adding meanings for ${kanji} at entry ${i}`);
+            console.log(err);
+          } else {
+          }
+        })
       } else {
         console.log('No meaning for ', json_result.kanjidic2.character[i].literal._text);
       }
@@ -156,55 +239,54 @@ for (i = 0; i < json_result.kanjidic2.character.length; i++) {
   }
 }
 
+db_connection.end(function (err) {
+  if (err) {
+    console.log(err);
+  } else {
+    console.log('closed db connection');
+  }
+});
+
 /*
  *  Insert kanji data into db tables
  *
  */
 
-// Set DB connection options and connect to db
-var db_connect_options = {
-  host: 'localhost',
-  user: 'root',
-  password: process.env.DB_PW,
-  database: 'kanji_app',
-  charset: 'utf8mb4'
-}
-var db_connection = mysql.createConnection(db_connect_options);
 
-// Insert kanji_entries into DB
-var kanji_q = `INSERT INTO kanji (id, literal, stroke_count, grade, frequency, jlpt) VALUES ?`;
-db_connection.query(kanji_q, [kanji_entries], function (err, thing) {
-  if (err) {
-    //console.log(err);
-    console.log('error adding kanji');
-  } else {
-    console.log('Successfully added kanji.');
-  }
-})
+// // Insert kanji_entries into DB
+// var kanji_q = `INSERT INTO kanji (id, literal, stroke_count, grade, frequency, jlpt) VALUES ?`;
+// db_connection.query(kanji_q, [kanji_entries], function (err, thing) {
+//   if (err) {
+//     //console.log(err);
+//     console.log('error adding kanji');
+//   } else {
+//     console.log('Successfully added kanji.');
+//   }
+// })
 
-// Insert meaning_entries into DB
-var meaning_q = `INSERT INTO meaning ( kanji_id, meaning, user_submitted) VALUES ?`;
-db_connection.query(meaning_q, [meaning_entries], function (err, thing) {
-  if (err) {
-    //console.log(err);
-    console.log('err adding meanings');
-  } else {
-    console.log('Successfully added meanings.');
-  }
-})
+// // Insert meaning_entries into DB
+// var meaning_q = `INSERT INTO meaning ( kanji_id, meaning, user_submitted) VALUES ?`;
+// db_connection.query(meaning_q, [meaning_entries], function (err, thing) {
+//   if (err) {
+//     //console.log(err);
+//     console.log('err adding meanings');
+//   } else {
+//     console.log('Successfully added meanings.');
+//   }
+// })
 
-// Insert reading_entries into DB
-var reading_q = `INSERT INTO reading ( kanji_id, reading, reading_type) VALUES ?`;
-db_connection.query(reading_q, [reading_entries], function (err, thing) {
-  if (err) {
-    console.log("error occurred adding readings")
-    //console.log(err);
-  } else {
-    console.log('Successfully added readings.');
-  }
-})
+// // Insert reading_entries into DB
+// var reading_q = `INSERT INTO reading ( kanji_id, reading, reading_type) VALUES ?`;
+// db_connection.query(reading_q, [reading_entries], function (err, thing) {
+//   if (err) {
+//     console.log("error occurred adding readings")
+//     //console.log(err);
+//   } else {
+//     console.log('Successfully added readings.');
+//   }
+// })
 
-db_connection.end();
+
 
 
 

@@ -1,0 +1,3 @@
+WHAT AM I DOIN?
+
+verify errors in create tables

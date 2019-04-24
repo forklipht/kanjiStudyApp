@@ -8,27 +8,33 @@ var db_connect_options = {
   host: 'localhost',
   user: 'root',
   password: process.env.DB_PW,
-  database: 'kanji_app'
+  database: 'kanji_app',
+  charset: 'utf8mb4'
 };
 
 var db_connection = mysql.createConnection(db_connect_options);
 
 var q = `
 SELECT *
-FROM kanji
-LEFT JOIN reading
-  ON reading.kanji_id = kanji.id
+FROM kanji k
+LEFT JOIN reading r
+  ON k.id = r.kanji_id
+WHERE k.literal = '生'
   `;
 
 db_connection.query(q, function(err, results){
   if(err){
     console.log(err);
   } else {
+    //console.log(results);
     results.forEach(function(row){
-      var literal = row.literal;
-      var reading = row.reading;
-      var type = row.reading_type;
-      console.log (`${literal}: ${reading} (${type}) `);
+      console.log(row);
+      // var literal = row.literal;
+      // var stroke_count = row.stroke_count;
+      // var freq = row.frequency;
+      // var reading = row.reading;
+      // var type = row.reading_type;
+      // console.log (`${literal}: ${stroke_count}`);
     })
   }
 })
